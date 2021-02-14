@@ -1,0 +1,8 @@
+#!/usr/bin/bash
+pid=$(pgrep 'prg-2.1|prg-2.2|prg-2.3|prg-2.4')
+if [ $? -ne 0 ]; then 
+    echo "Could not find any running program."
+    exit 1
+fi
+sid=$(ps -o sid= -p $pid)
+watch -n0.25 ps --forest -g $sid
