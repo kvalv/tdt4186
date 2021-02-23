@@ -1,0 +1,22 @@
+#!/usr/bin/bash -e
+
+
+evaluate() {
+    file=$1
+    mem_size=$(sed -n '1p' < $file)
+    actions=$(sed -n '2p' < $file)
+    expected=$(sed -n '3p' < $file)
+
+    make MEM_SIZE=${mem_size} prg 
+    result=$(./prg -t "${actions}")
+
+    echo result: $result
+    echo expect: $expected
+    diff <(echo $result) <(echo $expected)
+    echo diff: $?
+}
+
+for file; do
+    echo "Evaluating $file"
+    evaluate $file
+done

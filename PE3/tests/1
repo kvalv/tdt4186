@@ -1,0 +1,6 @@
+128
+M16 M8 M16 Fb
+OaDDFFZOcDDFFZZZ
+
+Allocate 3 consecutive blocks and then free the middle
+one.

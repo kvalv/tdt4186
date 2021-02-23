@@ -1,0 +1,13 @@
+128
+M32 M32 Fa M8
+OcDFFZObDDDDFFZZ
+
+Allocate a big chunk, and then later on free it. Then
+insert a small chunk, which we expect to be located all
+the way at the start.
+
+ZZZZZZZZZZZZZZZZ
+OaDDDDFFZZZZZZZZ  M32
+OaDDDDObDDDDFFZZ  M32
+FFZZZZObDDDDFFZZ  Fa
+OcDFFZObDDDDFFZZ  M8

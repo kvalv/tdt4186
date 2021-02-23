@@ -1,0 +1,7 @@
+128
+
+ZZZZZZZZZZZZZZZZ
+
+Allocate no blocks. We should have bunch of zero's. We should
+also not have any FF blocks at the start, because
+`mymalloc_init` is not invoked.

@@ -1,0 +1,8 @@
+128
+M16 M8 M16 Fa
+FFZZObDOcDDFFZZZ
+
+Allocate 3 consecutive blocks and then free the first
+one. The FF block should therefore be all the way
+in the front.
+

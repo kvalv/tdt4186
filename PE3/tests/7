@@ -1,0 +1,14 @@
+128
+M8 M8 M8 M8 Fb Fc
+OaDFFZZZZOdDFFZZ
+
+Free two adjacent middle blocks (b -> c)
+should yield one combined free block.
+
+ZZZZZZZZZZZZZZZZ 
+OaDFFZZZZZZZZZZZ M8
+OaDObDFFZZZZZZZZ M8
+OaDObDOcDFFZZZZZ M8
+OaDObDOcDOdDFFZZ M8
+OaDFFZOcDOdDFFZZ Fb
+OaDFFZZZZOdDFFZZ Fc

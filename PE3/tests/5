@@ -1,0 +1,6 @@
+128
+M128
+FFZZZZZZZZZZZZZZ
+
+Too big chunk should return a void pointer and we won't
+fill it.
