@@ -7,8 +7,4 @@ src/scanner.c: src/lex.l
 	$(LEX) -t  $< > $@
 
 wish: src/scanner.c
-	cc $(CFLAGS) $< -o $@
-
-
-
-.PHONY: clean testfiles
+	$(CC) $(CFLAGS) $< -o $@

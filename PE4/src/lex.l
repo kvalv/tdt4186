@@ -1,6 +1,8 @@
 %{
 #include <stdio.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -27,7 +29,7 @@ int main (int pargc, char **pargv) {
     char *argv[100];
     int argc = 0;
 
-    int token;
+    int token, fd_redir_in, fd_redir_out;
     while (1) {
         printf("\n:: ");
         fgets(line, 1024, stdin);
@@ -40,6 +42,19 @@ int main (int pargc, char **pargv) {
                     }
                     strcpy(argv[argc++], yytext);
                     break;
+                case IN_REDIR:
+                    yylex();
+                    if ((fd_redir_in = open(yytext, O_RDONLY)) < 0) {
+                        exit(errno);
+                    }
+                    break;
+                case OUT_REDIR:
+                    yylex();
+                    if ((fd_redir_out = open(yytext, O_WRONLY | O_CREAT, 0666)) < 0) {
+                        exit(errno);
+                    }
+                    break;
+
             }
         }
         argv[argc] = NULL;  // terminate so we know when the array of pointers end.
@@ -51,11 +66,16 @@ int main (int pargc, char **pargv) {
                 fprintf(stderr, "Could not fork.");
                 exit(1);
             case 0:
+                if ( fd_redir_in != 0 ) {
+                    dup2( fd_redir_in, 0);
+                }
+                if ( fd_redir_out != 1 ) {
+                    dup2( fd_redir_out, 1 );
+                }
                 if ((execvp(argv[0], argv) == -1)) {
                     perror("Error executing program");
                     exit(1);
                 }
-                printf("child exiting..\n");
                 exit(0);
             default:
                 if ( ( waitpid(pid, &status, 0) == -1) ) {
@@ -69,6 +89,8 @@ int main (int pargc, char **pargv) {
         /* cleanup */
         YY_FLUSH_BUFFER;
         yy_delete_buffer(bufstate);
+        fd_redir_in = 0;
+        fd_redir_out = 1;
         argc = 0;
     }
 }
