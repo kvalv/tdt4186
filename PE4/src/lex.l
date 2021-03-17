@@ -8,7 +8,7 @@
 #include <unistd.h>
 #include <limits.h>
 
-enum { ENF = 0, PARAM, PIPE, OUT_REDIR, IN_REDIR, };
+enum { ENF = 0, NEWLINE, PARAM, PIPE, OUT_REDIR, IN_REDIR, };
 int child_exit_code;
 %}
 
@@ -21,25 +21,35 @@ $? { printf("%d\n", child_exit_code); return 0; }
 \< { return IN_REDIR; }
 \> { return OUT_REDIR; }
 \| { return PIPE; }
-[\t\n\r\v ]            ;
+[\t\r\v\n ]            ;
 [!?"a-zA-Z0-9\-_\/\.]+ { return PARAM;}
 %%
 
 
 
-int main(int pargc, char **pargv)
-{    
+int main(int pargc, char *pargv[])
+{   
+    FILE *input_stream = stdin;
     char cwd[PATH_MAX]; // Current Working Directory
     char line[1024];
+    char *pline;
     char *argv[100];
     int argc = 0;
-
     int token, fd_redir_in, fd_redir_out;
+
+    if (pargc > 1){
+        if((input_stream = fopen(pargv[1], "r")) == NULL){
+            perror("fopen");
+            exit(errno);
+        }
+    }
+
     while (1)
     {  
         getcwd(cwd, PATH_MAX);
-        printf("\n%s:: ", cwd);
-        fgets(line, 1024, stdin);
+        printf("\n%s> ", cwd);
+        pline = fgets(line, 1024, input_stream);
+        if(pargc > 0){ printf("%s", line);}
         YY_BUFFER_STATE bufstate = yy_scan_string(line);
         while ((token = yylex()))
         {
@@ -68,9 +78,13 @@ int main(int pargc, char **pargv)
                 }
                 break;
             }
-        }
+        };
         argv[argc] = NULL; // terminate so we know when the array of pointers end.
 
+        if (pline == NULL){
+            exit(0);
+        }
+        
         if (!strcmp(argv[0], "cd")){
             if(chdir(argv[1]) != 0){
                 perror("Could not change directory");
@@ -78,6 +92,7 @@ int main(int pargc, char **pargv)
         }
         
         if (!strcmp(argv[0], "exit")){
+            printf("\nBye!\n");
             exit(0);
         }
 
@@ -115,7 +130,7 @@ int main(int pargc, char **pargv)
             }
         }
 
-        /* cleanup */
+        // cleanup 
         YY_FLUSH_BUFFER;
         yy_delete_buffer(bufstate);
         fd_redir_in = 0;
