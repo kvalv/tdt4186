@@ -1,3 +1,3 @@
-#!env bash
-make wish
+#!/usr/bin/bash
+make wish -B
 ./wish

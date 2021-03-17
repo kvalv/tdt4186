@@ -6,6 +6,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <limits.h>
 
 enum { ENF = 0, PARAM, PIPE, OUT_REDIR, IN_REDIR, };
 int child_exit_code;
@@ -21,69 +22,97 @@ $? { printf("%d\n", child_exit_code); return 0; }
 \> { return OUT_REDIR; }
 \| { return PIPE; }
 [\t\n\r\v ]            ;
-[!?"a-zA-Z0-9\-_\/]+ { return PARAM;}
+[!?"a-zA-Z0-9\-_\/\.]+ { return PARAM;}
 %%
 
-int main (int pargc, char **pargv) {
+
+
+int main(int pargc, char **pargv)
+{    
+    char cwd[PATH_MAX]; // Current Working Directory
     char line[1024];
     char *argv[100];
     int argc = 0;
 
     int token, fd_redir_in, fd_redir_out;
-    while (1) {
-        printf("\n:: ");
+    while (1)
+    {  
+        getcwd(cwd, PATH_MAX);
+        printf("\n%s:: ", cwd);
         fgets(line, 1024, stdin);
         YY_BUFFER_STATE bufstate = yy_scan_string(line);
-        while ((token = yylex())) {
-            switch(token) {
-                case PARAM:
-                    if ((argv[argc] = malloc(yyleng + 1)) == NULL) {
-                        fprintf(stderr, "error in malloc!"); exit(1);
-                    }
-                    strcpy(argv[argc++], yytext);
-                    break;
-                case IN_REDIR:
-                    yylex();
-                    if ((fd_redir_in = open(yytext, O_RDONLY)) < 0) {
-                        exit(errno);
-                    }
-                    break;
-                case OUT_REDIR:
-                    yylex();
-                    if ((fd_redir_out = open(yytext, O_WRONLY | O_CREAT, 0666)) < 0) {
-                        exit(errno);
-                    }
-                    break;
-
+        while ((token = yylex()))
+        {
+            switch (token)
+            {
+            case PARAM:
+                if ((argv[argc] = malloc(yyleng + 1)) == NULL)
+                {
+                    fprintf(stderr, "error in malloc!");
+                    exit(1);
+                }
+                strcpy(argv[argc++], yytext);
+                break;
+            case IN_REDIR:
+                yylex();
+                if ((fd_redir_in = open(yytext, O_RDONLY)) < 0)
+                {
+                    exit(errno);
+                }
+                break;
+            case OUT_REDIR:
+                yylex();
+                if ((fd_redir_out = open(yytext, O_WRONLY | O_CREAT, 0666)) < 0)
+                {
+                    exit(errno);
+                }
+                break;
             }
         }
-        argv[argc] = NULL;  // terminate so we know when the array of pointers end.
+        argv[argc] = NULL; // terminate so we know when the array of pointers end.
+
+        if (!strcmp(argv[0], "cd")){
+            if(chdir(argv[1]) != 0){
+                perror("Could not change directory");
+            }
+        }
+        
+        if (!strcmp(argv[0], "exit")){
+            exit(0);
+        }
 
         pid_t pid = fork();
         int status;
-        switch(pid) {
-            case -1:
-                fprintf(stderr, "Could not fork.");
+        switch (pid)
+        {
+        case -1:
+            fprintf(stderr, "Could not fork.");
+            exit(1);
+        case 0:
+            if (fd_redir_in != 0)
+            {
+                dup2(fd_redir_in, 0);
+            }
+            if (fd_redir_out != 1)
+            {
+                dup2(fd_redir_out, 1);
+            }
+            if (strcmp(argv[0], "cd") && (execvp(argv[0], argv) == -1))
+            {
+                perror("Error executing program");
                 exit(1);
-            case 0:
-                if ( fd_redir_in != 0 ) {
-                    dup2( fd_redir_in, 0);
-                }
-                if ( fd_redir_out != 1 ) {
-                    dup2( fd_redir_out, 1 );
-                }
-                if ((execvp(argv[0], argv) == -1)) {
-                    perror("Error executing program");
-                    exit(1);
-                }
-                exit(0);
-            default:
-                if ( ( waitpid(pid, &status, 0) == -1) ) {
-                    perror("Error in wait"); exit(1);
-                }
-                if (WIFEXITED(status)) { 
-                    child_exit_code = WEXITSTATUS(status);
-                }
+            }
+            exit(0);
+        default:
+            if ((waitpid(pid, &status, 0) == -1))
+            {
+                perror("Error in wait");
+                exit(1);
+            }
+            if (WIFEXITED(status))
+            {
+                child_exit_code = WEXITSTATUS(status);
+            }
         }
 
         /* cleanup */
