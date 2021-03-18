@@ -3,8 +3,8 @@ CC = gcc
 LEX = flex
 CFLAGS = -g -Wall
 
-src/scanner.c: src/lex.l
-	$(LEX) -t  $< > $@
-
 wish: src/scanner.c
 	$(CC) $(CFLAGS) $< -o $@
+
+src/scanner.c: src/lex.l
+	$(LEX) -t  $< > $@

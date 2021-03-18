@@ -38,15 +38,51 @@ void cd(char* s) {
 }
 
 void display_prompt() {
+    // to give wish a unique feel, we let the cwd path of the prompt consist of
+    // random uppercase and lowercase characters.
     getcwd(cwd, PATH_MAX);
+    for (int i = 0; i < strlen(cwd); i++) {
+        if (rand() % 2) {
+            if (cwd[i] >= 'a' && cwd[i] < 'z') {
+                cwd[i] -= 'a' - 'A';
+            }
+        }
+    }
     printf("\n%s> ", cwd);
+}
+
+void fork_and_wait(char **argv, int argc, int stdin, int stdout) {
+    pid_t pid = fork();
+    int status;
+    switch (pid) {
+        case -1:
+            fprintf(stderr, "Could not fork.");
+            exit(1);
+        case 0:
+            if (stdin != 0) {
+                dup2(stdin, 0);
+            }
+            if (stdout != 1) {
+                dup2(stdout, 1);
+            }
+            if  ((execvp(argv[0], argv) == -1)) {
+                fprintf(stderr, "Error executing program %s", argv[0]);
+                exit(1);
+            }
+            exit(0);
+        default:
+            if ((waitpid(pid, &status, 0) == -1)) {
+                perror("Error in wait");
+                exit(1);
+            }
+            if (WIFEXITED(status)) { child_exit_code = WEXITSTATUS(status); }
+    }
 }
 
 int main(int pargc, char *pargv[])
 {   
     FILE *input_stream = stdin;
     char line[1024];
-    char *pline;
     char *argv[100];
     int argc = 0;
     int token, fd_redir_in, fd_redir_out;
@@ -62,15 +98,16 @@ int main(int pargc, char *pargv[])
     {  
         display_prompt();
 
-        pline = fgets(line, 1024, input_stream);
+        YY_FLUSH_BUFFER;
+        fgets(line, 1024, input_stream);
+
         YY_BUFFER_STATE bufstate = yy_scan_string(line);
         while ((token = yylex()))
         {
             switch (token)
             {
             case PARAM:
-                if ((argv[argc] = malloc(yyleng + 1)) == NULL)
-                {
+                if ((argv[argc] = malloc(yyleng + 1)) == NULL) {
                     fprintf(stderr, "error in malloc!");
                     exit(1);
                 }
@@ -78,15 +115,13 @@ int main(int pargc, char *pargv[])
                 break;
             case IN_REDIR:
                 yylex();
-                if ((fd_redir_in = open(yytext, O_RDONLY)) < 0)
-                {
+                if ((fd_redir_in = open(yytext, O_RDONLY)) < 0) {
                     exit(errno);
                 }
                 break;
             case OUT_REDIR:
                 yylex();
-                if ((fd_redir_out = open(yytext, O_WRONLY | O_CREAT, 0666)) < 0)
-                {
+                if ((fd_redir_out = open(yytext, O_WRONLY | O_CREAT, 0666)) < 0) {
                     exit(errno);
                 }
                 break;
@@ -94,51 +129,17 @@ int main(int pargc, char *pargv[])
         };
         argv[argc] = NULL; // terminate so we know when the array of pointers end.
 
-        if (pline == NULL){
-            exit(0);
-        }
-        
-        if (!strcmp(argv[0], "cd")){
-            cd(argv[1]);
-        }
-        
-        if (!strcmp(argv[0], "exit")){
-            printf("\nBye!\n");
-            exit(0);
+        if ( argc == 0 ) {
+            continue;
         }
 
-        pid_t pid = fork();
-        int status;
-        switch (pid)
-        {
-        case -1:
-            fprintf(stderr, "Could not fork.");
-            exit(1);
-        case 0:
-            if (fd_redir_in != 0)
-            {
-                dup2(fd_redir_in, 0);
-            }
-            if (fd_redir_out != 1)
-            {
-                dup2(fd_redir_out, 1);
-            }
-            if (strcmp(argv[0], "cd") && (execvp(argv[0], argv) == -1))
-            {
-                perror("Error executing program");
-                exit(1);
-            }
+        if (strcmp(argv[0], "cd") == 0) {
+            cd(argv[1]);
+        } else if (strcmp(argv[0], "exit") == 0) {
+            printf("\nBye!\n");
             exit(0);
-        default:
-            if ((waitpid(pid, &status, 0) == -1))
-            {
-                perror("Error in wait");
-                exit(1);
-            }
-            if (WIFEXITED(status))
-            {
-                child_exit_code = WEXITSTATUS(status);
-            }
+        } else {
+            fork_and_wait(argv, argc, fd_redir_in, fd_redir_out);
         }
 
         // cleanup 
