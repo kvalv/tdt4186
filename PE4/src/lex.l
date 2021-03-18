@@ -1,5 +1,6 @@
 %{
 #include <stdio.h>
+#include <wordexp.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -22,15 +23,28 @@ $? { printf("%d\n", child_exit_code); return 0; }
 \> { return OUT_REDIR; }
 \| { return PIPE; }
 [\t\r\v\n ]            ;
-[!?"a-zA-Z0-9\-_\/\.]+ { return PARAM;}
+[$~!?"a-zA-Z0-9\-_\/\.]+ { return PARAM;}
 %%
 
+char cwd[PATH_MAX]; // Current Working Directory
 
+void cd(char* s) {
+    // using `wordexp` we also have tilde-expansion and
+    // variable substitution
+    wordexp_t exp_result;
+    wordexp(s, &exp_result, 0);
+    if (chdir(exp_result.we_wordv[0]) != 0) { perror(""); }
+    wordfree(&exp_result);
+}
+
+void display_prompt() {
+    getcwd(cwd, PATH_MAX);
+    printf("\n%s> ", cwd);
+}
 
 int main(int pargc, char *pargv[])
 {   
     FILE *input_stream = stdin;
-    char cwd[PATH_MAX]; // Current Working Directory
     char line[1024];
     char *pline;
     char *argv[100];
@@ -46,10 +60,9 @@ int main(int pargc, char *pargv[])
 
     while (1)
     {  
-        getcwd(cwd, PATH_MAX);
-        printf("\n%s> ", cwd);
+        display_prompt();
+
         pline = fgets(line, 1024, input_stream);
-        if(pargc > 0){ printf("%s", line);}
         YY_BUFFER_STATE bufstate = yy_scan_string(line);
         while ((token = yylex()))
         {
@@ -86,9 +99,7 @@ int main(int pargc, char *pargv[])
         }
         
         if (!strcmp(argv[0], "cd")){
-            if(chdir(argv[1]) != 0){
-                perror("Could not change directory");
-            }
+            cd(argv[1]);
         }
         
         if (!strcmp(argv[0], "exit")){
