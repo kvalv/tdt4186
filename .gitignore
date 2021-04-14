@@ -4,3 +4,5 @@ compilers-pe2
 tags
 output.txt
 lex.yy.c
+PE5/loop.sh
+PE5/bench

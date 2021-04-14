@@ -1,0 +1,5 @@
+Bandwith:
+
+MAX BLOCKSIZE:  12198 bytes
+
+MAX BANDWITH:   8694424000 @ around 8Kb

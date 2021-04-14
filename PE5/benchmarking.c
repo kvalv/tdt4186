@@ -3,42 +3,36 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <signal.h>
+#include <fcntl.h>
 
-// Global variables
-// Used inside SIGALRM-handler
 ssize_t bytes_read_this_alarm = 0;
 ssize_t bytes_read_total = 0;
 int seconds = 0;
 
+// Sighandler for USR1-signal
+void handle_USR1(int signum)
+{
+    printf("Total bytes received:\t %ld \n", bytes_read_total);
+}
+
 void compute_bandwidth(int signum)
 {
-    //printf("Bandwidth:\t %luB/s\n", bytes_read_this_alarm);
-
+    printf("Bandwith: \t\t %lu B/s\n", bytes_read_this_alarm);
     bytes_read_total += bytes_read_this_alarm;
     bytes_read_this_alarm = 0;
     alarm(1);
     seconds++;
-
-    //
-    //  Lines underneath prints mean, used to compare bandwith by block sizes
-    //
-    // if ((seconds % 5) == 0)
-    // {
-    //     long mean = bytes_read_total / seconds;
-    //     printf("Mean:\t\t %lu\n", mean);
-    // }
 }
 
-void read_cummulative(int read_descriptor, int block_size)
+int read_cummulative(int read_descriptor, int block_size)
 {
-    char *read_chars;
+    char buffer[block_size];
     ssize_t read_bytes = 0;
-    signal(SIGALRM, compute_bandwidth);
 
     alarm(1);
     while (1)
     {
-        read_bytes = read(read_descriptor, &read_chars, block_size);
+        read_bytes = read(read_descriptor, buffer, block_size);
         if (read_bytes > 0)
         {
             bytes_read_this_alarm += read_bytes;
@@ -58,8 +52,10 @@ void read_cummulative(int read_descriptor, int block_size)
 
 int main(int argc, char const *argv[])
 {
+
     // File descriptors used in pipe
     int fd[2]; // fd[0] - read,    fd[1] - write
+    int exit_val = EXIT_SUCCESS;
 
     // Sets new blocksize - if provided
     long block_size = 1024;
@@ -67,7 +63,8 @@ int main(int argc, char const *argv[])
     {
         block_size = atol(argv[1]);
     }
-    printf("Block size: %lu\n", block_size);
+    // printf("Block size: %lu\n", block_size);
+    printf("Parent PID: %d\n", getpid());
 
     // Create unnamed pipe
     if (pipe(fd) == -1)
@@ -86,8 +83,10 @@ int main(int argc, char const *argv[])
     }
     else
     {
+        signal(SIGALRM, compute_bandwidth);
+        signal(SIGUSR1, handle_USR1);
         read_cummulative(fd[0], block_size);
     }
 
-    return EXIT_SUCCESS;
+    return exit_val;
 }
