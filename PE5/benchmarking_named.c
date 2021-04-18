@@ -9,16 +9,6 @@ ssize_t bytes_read_this_alarm = 0;
 ssize_t bytes_read_total = 0;
 int seconds = 0;
 
-//
-// Answers to task b):
-//
-// Values found on WSL2, running on a Ryzen 7 5800X with 8 cores/16 threads
-// MAX BLOCKSIZE:  12198 bytes, bandwith drops to about 4GB/s at larger block sizes
-// MAX BANDWITH:   8694424000 @ blocksize =~ 8KB
-// Bandwidth seems to be shared between instances running on the same processor thread.
-// In example, running two instances with blocksize set to 8KB on a single processor thread results in a bandwith at about 4GB/s on each.
-// We verified the assigned processor thread with ´ps -eLF´.
-
 // Sighandler for USR1-signal
 void handle_USR1(int signum)
 {
@@ -65,9 +55,12 @@ int read_cummulative(int read_descriptor, int block_size)
 int main(int argc, char const *argv[])
 {
 
-    // File descriptors used in pipe
-    int fd[2]; // fd[0] - read,    fd[1] - write
-    int exit_val = EXIT_SUCCESS;
+    unlink("named_pipe");
+    if (mkfifo("named_pipe", 0777) == -1)
+    {
+        perror("Could not create fifo file.\n");
+        return EXIT_FAILURE;
+    }
 
     // Sets new blocksize - if provided
     long block_size = 1024;
@@ -77,28 +70,21 @@ int main(int argc, char const *argv[])
     }
     // printf("Block size: %lu\n", block_size);
     printf("Parent PID: %d\n", getpid());
-
-    // Create unnamed pipe
-    if (pipe(fd) == -1)
-    {
-        perror("Error opening pipe: ");
-    }
-
     int id = fork();
 
     if (id == 0)
     {
+        int fd = open("named_pipe", O_WRONLY);
         while (1)
         {
-            write(fd[1], "", block_size);
+            write(fd, "", block_size);
         }
     }
     else
     {
         signal(SIGALRM, compute_bandwidth);
         signal(SIGUSR1, handle_USR1);
-        read_cummulative(fd[0], block_size);
+        int fd = open("named_pipe", O_RDONLY);
+        read_cummulative(fd, block_size);
     }
-
-    return exit_val;
 }
